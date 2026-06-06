@@ -1,0 +1,1 @@
+{"name":"Calorie \u0026 Nutrition Tracker","description":"Seamlessly onboard biometrics, track daily calorie and macronutrient progress, automatically parse meals via Google Gemini photo intelligence, and securely sync records.","requestFramePermissions":["camera"],"majorCapabilities":["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]}

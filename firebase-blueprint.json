@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "User profile with onboarding metrics and nutrition target metrics",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "age": { "type": "integer" },
+        "height": { "type": "integer" },
+        "weight": { "type": "integer" },
+        "goal": { "type": "string" },
+        "targetCalories": { "type": "integer" },
+        "targetProtein": { "type": "integer" },
+        "targetCarbs": { "type": "integer" },
+        "targetFat": { "type": "integer" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "gender", "age", "height", "weight", "goal", "targetCalories", "targetProtein", "targetCarbs", "targetFat", "updatedAt"]
+    },
+    "FoodLog": {
+      "title": "FoodLog",
+      "description": "Food log item detailing nutrition values and optional visual summary metadata",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "foodName": { "type": "string" },
+        "mealType": { "type": "string", "enum": ["breakfast", "lunch", "dinner", "snack"] },
+        "calories": { "type": "integer" },
+        "protein": { "type": "integer" },
+        "carbs": { "type": "integer" },
+        "fat": { "type": "integer" },
+        "ingredients": { "type": "array" },
+        "imageUrl": { "type": "string" },
+        "loggedAt": { "type": "string", "format": "date-time" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "userId", "foodName", "mealType", "calories", "protein", "carbs", "fat", "loggedAt", "createdAt"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "Collection of user profiles containing their health metrics and nutritional goals"
+    },
+    "/users/{userId}/logs/{logId}": {
+      "schema": "FoodLog",
+      "description": "Sub-collection of dietary records logged on various days"
+    }
+  }
+}
