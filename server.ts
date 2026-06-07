@@ -8,7 +8,7 @@ import dotenv from "dotenv";
 // Load local .env if available
 dotenv.config();
 
-const PORT = 3000;
+const PORT = process.env.PORT || 3000;
 
 // Lazy-loaded Gemini AI client to prevent startup failures on missing API keys
 let aiInstance: GoogleGenAI | null = null;
