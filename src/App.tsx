@@ -1,15 +1,14 @@
 import { useState, useEffect } from 'react';
-import { onAuthStateChanged, User as FirebaseUser } from 'firebase/auth';
+import { User } from '@supabase/supabase-js';
 import { 
-  auth, 
-  testConnectionOnBoot, 
+  supabase, 
   getUserProfile, 
   saveUserProfile, 
   getFoodLogs, 
   addFoodLog, 
   deleteFoodLog, 
   logUserOut 
-} from './lib/firebase';
+} from './lib/supabase';
 import { UserProfile, FoodLog } from './types';
 import LoginView from './components/LoginView';
 import OnboardingForm from './components/OnboardingForm';
@@ -23,7 +22,7 @@ export default function App() {
   });
 
   // Auth state monitoring
-  const [user, setUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [logs, setLogs] = useState<FoodLog[]>([]);
   
@@ -50,51 +49,66 @@ export default function App() {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
   };
 
-  // 1. Initial Connection Validation and Auth Listener on Boot
+  // 1. Supabase Auth Listener on Boot
   useEffect(() => {
-    // Run mandatory connection testing
-    testConnectionOnBoot();
-
-    const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
+    // Get current session on mount
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      const currentUser = session?.user ?? null;
       setUser(currentUser);
       if (currentUser) {
-        setIsDataLoading(true);
-        try {
-          // Fetch user profile from Firestore db
-          const existingProfile = await getUserProfile(currentUser.uid);
-          setProfile(existingProfile);
-
-          if (existingProfile) {
-            // Load logs
-            const userLogs = await getFoodLogs(currentUser.uid);
-            setLogs(userLogs);
-          }
-        } catch (e) {
-          console.error("Failed loading data on initialization:", e);
-        } finally {
-          setIsDataLoading(false);
-          setIsAuthLoading(false);
-        }
+        loadUserData(currentUser.id);
       } else {
-        setProfile(null);
-        setLogs([]);
         setIsAuthLoading(false);
       }
     });
 
-    return () => unsubscribe();
+    // Listen for auth state changes (login, logout, token refresh)
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (_event, session) => {
+        const currentUser = session?.user ?? null;
+        setUser(currentUser);
+        if (currentUser) {
+          await loadUserData(currentUser.id);
+        } else {
+          setProfile(null);
+          setLogs([]);
+          setIsAuthLoading(false);
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
   }, []);
+
+  // Helper to load user profile & logs
+  async function loadUserData(userId: string) {
+    setIsDataLoading(true);
+    try {
+      const existingProfile = await getUserProfile(userId);
+      setProfile(existingProfile);
+
+      if (existingProfile) {
+        const userLogs = await getFoodLogs(userId);
+        setLogs(userLogs);
+      }
+    } catch (e) {
+      console.error("Failed loading data on initialization:", e);
+    } finally {
+      setIsDataLoading(false);
+      setIsAuthLoading(false);
+    }
+  }
 
   // 2. Onboarding completion logic
   const handleOnboardingComplete = async (newProfile: UserProfile) => {
     if (!user) return;
     setIsDataLoading(true);
     try {
-      await saveUserProfile(user.uid, newProfile);
+      await saveUserProfile(user.id, newProfile);
       setProfile(newProfile);
       
       // Load initially logged meals (will be empty)
-      const userLogs = await getFoodLogs(user.uid);
+      const userLogs = await getFoodLogs(user.id);
       setLogs(userLogs);
     } catch (e) {
       console.error("Error committing onboarding settings:", e);
@@ -119,17 +133,17 @@ export default function App() {
       const generatedId = 'log_' + Math.random().toString(36).substring(2, 11);
       const newLog: FoodLog = {
         id: generatedId,
-        userId: user.uid,
+        userId: user.id,
         ...mealInfo,
         loggedAt: mealInfo.loggedAt,
         createdAt: new Date().toISOString()
       };
 
-      // Store in firestore db
-      await addFoodLog(user.uid, newLog);
+      // Store in Supabase
+      await addFoodLog(user.id, newLog);
 
-      // Reload state list from Firestore securely
-      const updatedLogs = await getFoodLogs(user.uid);
+      // Reload state list from Supabase
+      const updatedLogs = await getFoodLogs(user.id);
       setLogs(updatedLogs);
     } catch (e) {
       console.error("Failed adding meals:", e);
@@ -144,10 +158,10 @@ export default function App() {
     if (!user) return;
     setIsActionLoading(true);
     try {
-      await deleteFoodLog(user.uid, logId);
+      await deleteFoodLog(user.id, logId);
       
-      // Reload secure Firestore logs list
-      const updatedLogs = await getFoodLogs(user.uid);
+      // Reload Supabase logs list
+      const updatedLogs = await getFoodLogs(user.id);
       setLogs(updatedLogs);
     } catch (e) {
       console.error("Failed removing food record:", e);
@@ -178,7 +192,7 @@ export default function App() {
   if (!user) {
     return (
       <LoginView 
-        onLoginSuccess={(signedUser) => setUser(signedUser)} 
+        onLoginSuccess={() => {/* Supabase auth listener handles state updates */}} 
         isLoading={isActionLoading}
         setIsLoading={setIsActionLoading}
         theme={theme}
@@ -191,7 +205,7 @@ export default function App() {
   if (!profile) {
     return (
       <OnboardingForm 
-        userId={user.uid} 
+        userId={user.id} 
         onComplete={handleOnboardingComplete} 
         theme={theme}
         onToggleTheme={toggleTheme}

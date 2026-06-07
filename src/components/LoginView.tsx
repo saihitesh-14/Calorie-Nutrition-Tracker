@@ -1,9 +1,9 @@
 import { motion } from 'motion/react';
 import { LogIn, Sparkles, Activity, Apple, Camera, Sun, Moon } from 'lucide-react';
-import { signInWithGoogle } from '../lib/firebase';
+import { signInWithGoogle } from '../lib/supabase';
 
 interface LoginViewProps {
-  onLoginSuccess: (user: any) => void;
+  onLoginSuccess: () => void;
   isLoading: boolean;
   setIsLoading: (val: boolean) => void;
   theme: 'light' | 'dark';
@@ -14,13 +14,11 @@ export default function LoginView({ onLoginSuccess, isLoading, setIsLoading, the
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-      const user = await signInWithGoogle();
-      if (user) {
-        onLoginSuccess(user);
-      }
+      await signInWithGoogle();
+      // Supabase OAuth uses redirect — the auth state listener in App.tsx
+      // will handle the session after Google redirects back.
     } catch (err) {
       console.error("Login failed:", err);
-    } finally {
       setIsLoading(false);
     }
   };
